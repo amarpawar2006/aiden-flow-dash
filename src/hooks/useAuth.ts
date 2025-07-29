@@ -1,5 +1,7 @@
 import { useState, useEffect, useContext, createContext } from 'react';
 import { User, AuthState } from '@/types/auth';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
@@ -23,17 +25,18 @@ export const useAuthState = () => {
     isLoading: true,
     isAuthenticated: false,
   });
+  const [session, setSession] = useState<Session | null>(null);
 
-  // Mock authentication for demo - replace with real Supabase auth
+  // Real Supabase authentication
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // Check for existing session
-        const savedUser = localStorage.getItem('aiden-auth-user');
-        if (savedUser) {
-          const user = JSON.parse(savedUser);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        if (session?.user) {
+          const profile = await fetchUserProfile(session.user);
           setAuthState({
-            user,
+            user: profile,
             isLoading: false,
             isAuthenticated: true,
           });
@@ -44,65 +47,90 @@ export const useAuthState = () => {
             isAuthenticated: false,
           });
         }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchUserProfile(session.user).then(profile => {
+          setAuthState({
+            user: profile,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+        });
+      } else {
         setAuthState({
           user: null,
           isLoading: false,
           isAuthenticated: false,
         });
       }
-    };
+    });
 
-    initAuth();
+    return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<User> => {
+    try {
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
+
+      if (profile) {
+        return {
+          id: profile.id,
+          email: supabaseUser.email || '',
+          name: profile.full_name || '',
+          role: profile.role || 'employee',
+          avatar_url: profile.avatar_url,
+          contact_info: {
+            phone: profile.phone,
+            location: profile.location,
+          },
+          skills: profile.skills || [],
+          strengths: profile.strengths || [],
+          created_at: profile.created_at,
+          updated_at: profile.updated_at,
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+
+    // Fallback if no profile found
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      name: supabaseUser.email?.split('@')[0] || 'User',
+      role: 'employee',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  };
 
   const login = async (email: string, password: string) => {
     setAuthState(prev => ({ ...prev, isLoading: true }));
     
     try {
-      // Mock login - replace with real Supabase auth
-      let user: User;
-      
-      if (email === 'admin@aiden.ai') {
-        user = {
-          id: '1',
-          email: 'admin@aiden.ai',
-          name: 'Super Admin',
-          role: 'super_admin',
-          avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-      } else if (email === 'leader@aiden.ai') {
-        user = {
-          id: '2',
-          email: 'leader@aiden.ai',
-          name: 'UX/UI Lead',
-          role: 'leadership',
-          avatar_url: 'https://images.unsplash.com/photo-1494790108755-2616b612b5c8?w=100&h=100&fit=crop&crop=face',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-      } else {
-        user = {
-          id: '3',
-          email: email,
-          name: 'UX Designer',
-          role: 'employee',
-          avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setAuthState({
+          user: null,
+          isLoading: false,
+          isAuthenticated: false,
+        });
+        throw new Error(error.message);
       }
 
-      localStorage.setItem('aiden-auth-user', JSON.stringify(user));
-      
-      setAuthState({
-        user,
-        isLoading: false,
-        isAuthenticated: true,
-      });
+      // Auth state will be updated via onAuthStateChange
     } catch (error) {
       console.error('Login error:', error);
       setAuthState({
@@ -115,7 +143,8 @@ export const useAuthState = () => {
   };
 
   const logout = async () => {
-    localStorage.removeItem('aiden-auth-user');
+    await supabase.auth.signOut();
+    setSession(null);
     setAuthState({
       user: null,
       isLoading: false,
@@ -123,14 +152,30 @@ export const useAuthState = () => {
     });
   };
 
-  const updateUser = (userData: Partial<User>) => {
-    if (authState.user) {
-      const updatedUser = { ...authState.user, ...userData };
-      localStorage.setItem('aiden-auth-user', JSON.stringify(updatedUser));
-      setAuthState(prev => ({
-        ...prev,
-        user: updatedUser,
-      }));
+  const updateUser = async (userData: Partial<User>) => {
+    if (authState.user && session) {
+      try {
+        const { error } = await (supabase as any)
+          .from('profiles')
+          .update({
+            full_name: userData.name,
+            phone: userData.contact_info?.phone,
+            location: userData.contact_info?.location,
+            skills: userData.skills,
+            strengths: userData.strengths,
+          })
+          .eq('id', authState.user.id);
+
+        if (!error) {
+          const updatedUser = { ...authState.user, ...userData, updated_at: new Date().toISOString() };
+          setAuthState(prev => ({
+            ...prev,
+            user: updatedUser,
+          }));
+        }
+      } catch (error) {
+        console.error('Error updating profile:', error);
+      }
     }
   };
 

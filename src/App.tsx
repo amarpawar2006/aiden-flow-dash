@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import TeamManagement from "./pages/TeamManagement";
 import Projects from "./pages/Projects";
@@ -27,7 +29,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/dashboard" element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <Dashboard />
@@ -70,14 +74,14 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/profile" element={
-              <ProtectedRoute requiredRoles={['employee']}>
+              <ProtectedRoute>
                 <DashboardLayout>
                   <Profile />
                 </DashboardLayout>
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
-              <ProtectedRoute requiredRoles={['super_admin']}>
+              <ProtectedRoute>
                 <DashboardLayout>
                   <Settings />
                 </DashboardLayout>

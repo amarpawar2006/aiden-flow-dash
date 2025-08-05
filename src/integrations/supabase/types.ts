@@ -14,7 +14,135 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      certifications: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          provider: string | null
+          required_for_roles: string[] | null
+          updated_at: string
+          validity_period: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          provider?: string | null
+          required_for_roles?: string[] | null
+          updated_at?: string
+          validity_period?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          provider?: string | null
+          required_for_roles?: string[] | null
+          updated_at?: string
+          validity_period?: number | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          allocated_from: string | null
+          allocated_to: string | null
+          avatar_url: string | null
+          certifications: string[] | null
+          contact_info: Json | null
+          created_at: string
+          current_project: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          role: string
+          skills: string[] | null
+          status: string
+          strengths: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allocated_from?: string | null
+          allocated_to?: string | null
+          avatar_url?: string | null
+          certifications?: string[] | null
+          contact_info?: Json | null
+          created_at?: string
+          current_project?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string
+          skills?: string[] | null
+          status?: string
+          strengths?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allocated_from?: string | null
+          allocated_to?: string | null
+          avatar_url?: string | null
+          certifications?: string[] | null
+          contact_info?: Json | null
+          created_at?: string
+          current_project?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string
+          skills?: string[] | null
+          status?: string
+          strengths?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          start_date: string | null
+          status: string
+          team_members: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          start_date?: string | null
+          status?: string
+          team_members?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          start_date?: string | null
+          status?: string
+          team_members?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
